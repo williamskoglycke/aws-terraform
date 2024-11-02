@@ -1,15 +1,18 @@
 module "iam" {
-  source         = "./modules/iam"
-  region         = var.region
-  aws_access_key = var.aws_access_key
-  aws_secret_key = var.aws_secret_key
+  source                  = "./modules/iam"
+  region                  = var.region
+  aws_access_key          = var.aws_access_key
+  aws_secret_key          = var.aws_secret_key
+  github_action_user_name = var.github_action_user_name
 }
 
 module "ec2" {
-  source         = "./modules/ec2"
-  region         = var.region
-  aws_access_key = module.iam.terraform_access_key_id
-  aws_secret_key = module.iam.terraform_secret_access_key
+  source                  = "./modules/ec2"
+  region                  = var.region
+  aws_access_key          = module.iam.terraform_access_key_id
+  aws_secret_key          = module.iam.terraform_secret_access_key
+  backend_container_name  = var.backend_container_name
+  frontend_container_name = var.frontend_container_name
 }
 
 module "s3" {
@@ -32,26 +35,23 @@ module "rds" {
 }
 
 module "ecr" {
-  source              = "./modules/ecr"
-  region              = var.region
-  aws_access_key      = module.iam.terraform_access_key_id
-  aws_secret_key      = module.iam.terraform_secret_access_key
-  container_repo_name = var.container_repo_name
+  source                  = "./modules/ecr"
+  region                  = var.region
+  aws_access_key          = module.iam.terraform_access_key_id
+  aws_secret_key          = module.iam.terraform_secret_access_key
+  backend_container_name  = var.backend_container_name
+  frontend_container_name = var.frontend_container_name
+  github_action_user_name = var.github_action_user_name
 }
 
 module "github" {
-  source               = "./modules/github"
-  github_token         = var.github_token
-  aws_role_to_assume   = module.ecr.role_to_assume
-  aws_role_external_id = module.ecr.role_external_id
-  aws_access_key       = module.ecr.container_uploader_access_key_id
-  aws_secret_key       = module.ecr.container_uploader_secret_access_key
-}
-
-module "ecr-github" {
-  source          = "./modules/ecr-github"
-  region          = var.region
-  repository_name = var.container_repo_name
-  aws_access_key  = module.iam.terraform_access_key_id
-  aws_secret_key  = module.iam.terraform_secret_access_key
+  source                  = "./modules/github"
+  github_token            = var.github_token
+  aws_role_to_assume      = module.ecr.role_to_assume
+  aws_role_external_id    = module.ecr.role_external_id
+  aws_access_key          = module.ecr.container_uploader_access_key_id
+  aws_secret_key          = module.ecr.container_uploader_secret_access_key
+  backend_container_name  = var.backend_container_name
+  frontend_container_name = var.frontend_container_name
+  ec2_instance_id         = module.ec2.instance_id
 }

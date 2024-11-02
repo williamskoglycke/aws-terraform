@@ -19,3 +19,13 @@ variable "server_port" {
   description = "The port the server will use for HTTP requests"
   default = "80"
 }
+
+variable "backend_container_name" {
+  description = "The backend container name."
+  default = "backend"
+}
+
+variable "frontend_container_name" {
+  description = "The frontend container name."
+  default = "frontend"
+}

@@ -8,6 +8,30 @@ resource "github_repository" "my_repository" {
   visibility  = "public"
 }
 
+resource "github_actions_secret" "region" {
+  repository      = github_repository.my_repository.id
+  secret_name     = "AWS_REGION"
+  plaintext_value = var.region
+}
+
+resource "github_actions_secret" "ec2_instance_id" {
+  repository      = github_repository.my_repository.id
+  secret_name     = "EC2_INSTANCE_ID"
+  plaintext_value = var.ec2_instance_id
+}
+
+resource "github_actions_secret" "backend_container_name" {
+  repository      = github_repository.my_repository.id
+  secret_name     = "BACKEND_CONTAINER_NAME"
+  plaintext_value = var.backend_container_name
+}
+
+resource "github_actions_secret" "frontend_container_name" {
+  repository      = github_repository.my_repository.id
+  secret_name     = "FRONTEND_CONTAINER_NAME"
+  plaintext_value = var.frontend_container_name
+}
+
 resource "github_actions_secret" "aws_access_key_id" {
   repository      = github_repository.my_repository.id
   secret_name     = "AWS_ACCESS_KEY_ID"
@@ -35,7 +59,6 @@ resource "github_actions_secret" "aws_role_external_id" {
 resource "github_branch_protection" "main" {
   repository_id  = github_repository.my_repository.id
   pattern        = "main"
-  enforce_admins = true
 
   required_pull_request_reviews {
     dismiss_stale_reviews           = true
@@ -52,7 +75,6 @@ resource "github_branch_protection" "main" {
 resource "github_branch_protection" "develop" {
   repository_id  = github_repository.my_repository.id
   pattern        = "develop"
-  enforce_admins = true
 
   required_pull_request_reviews {
     dismiss_stale_reviews           = true

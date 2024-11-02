@@ -21,7 +21,8 @@ resource "aws_iam_policy" "terraform_access_policy" {
           "ecr:*",
           "iam:*",
           "rds:*",
-          "s3:*"
+          "s3:*",
+          "ssm:*"
         ],
         "Resource": "*"
       }
@@ -36,6 +37,10 @@ resource "aws_iam_user_policy_attachment" "terraform_group_policy" {
 
 resource "aws_iam_access_key" "terraform_user_key" {
   user = aws_iam_user.terraform_user.name
+}
+
+resource "aws_iam_user" "ecr_user" {
+  name = var.github_action_user_name
 }
 
 

@@ -4,9 +4,15 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_ecr_repository" "container_repo" {
-  name = var.container_repo_name
+resource "aws_ecr_repository" "backend_repo" {
+  name = var.backend_container_name
 }
+
+resource "aws_ecr_repository" "frontend_repo" {
+  name = var.frontend_container_name
+}
+
+data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "ecr_role" {
   name = "ecr_role"
@@ -16,9 +22,13 @@ resource "aws_iam_role" "ecr_role" {
       {
         Effect = "Allow",
         Principal = {
-          Service = "ecr.amazonaws.com"
+          Service = "ecr.amazonaws.com",
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${var.github_action_user_name}"
         },
-        Action = "sts:AssumeRole"
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ]
       }
     ]
   })
@@ -32,7 +42,10 @@ resource "aws_iam_policy" "assume_ecr_role_policy" {
     Statement = [
       {
         Effect = "Allow",
-        Action = "sts:AssumeRole",
+        Action = [
+          "sts:AssumeRole",
+          "sts:TagSession"
+        ],
         Resource = aws_iam_role.ecr_role.arn
       }
     ]
@@ -55,9 +68,12 @@ resource "aws_iam_policy" "ecr_policy" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:InitiateLayerUpload",
           "ecr:PutImage",
-          "ecr:UploadLayerPart"
+          "ecr:UploadLayerPart",
+          "ssm:SendCommand",
+          "ssm:ListCommands",
+          "ssm:ListCommandInvocations"
         ],
-        Resource = aws_ecr_repository.container_repo.arn
+        Resource = "*"
       }
     ]
   })
@@ -68,15 +84,11 @@ resource "aws_iam_role_policy_attachment" "ecr_role_policy_attachment" {
   policy_arn = aws_iam_policy.ecr_policy.arn
 }
 
-resource "aws_iam_user" "ecr_user" {
-  name = "ecr_user"
-}
-
 resource "aws_iam_user_policy_attachment" "ecr_user_assume_role_attachment" {
-  user       = aws_iam_user.ecr_user.name
+  user       = var.github_action_user_name
   policy_arn = aws_iam_policy.assume_ecr_role_policy.arn
 }
 
 resource "aws_iam_access_key" "ecr_user_key" {
-  user = aws_iam_user.ecr_user.name
+  user = var.github_action_user_name
 }

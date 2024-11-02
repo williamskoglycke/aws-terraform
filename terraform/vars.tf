@@ -28,9 +28,21 @@ variable "region" {
   default = "eu-north-1"
 }
 
-variable "container_repo_name" {
-  description = "The name of the container repo."
+variable "backend_container_name" {
+  description = "The name of the backend container."
   type        = string
-  default = "my_container_repo"
+  default = "backend"
+}
+
+variable "frontend_container_name" {
+  description = "The name of the frontend container."
+  type        = string
+  default = "frontend"
+}
+
+variable "github_action_user_name" {
+  description = "GitHub action user name"
+  type        = string
+  default = "deployer"
 }
 

@@ -15,7 +15,17 @@ variable "aws_secret_key" {
   sensitive   = true
 }
 
-variable "container_repo_name" {
-  description = "The name of the container repo."
-  default = "my_container_repo"
+variable "backend_container_name" {
+  description = "The backend container name."
+  default = "backend"
+}
+
+variable "frontend_container_name" {
+  description = "The frontend container name."
+  default = "frontend"
+}
+
+variable "github_action_user_name" {
+  description = "GitHub action user name"
+  type        = string
 }

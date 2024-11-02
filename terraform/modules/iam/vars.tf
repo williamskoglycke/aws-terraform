@@ -14,3 +14,8 @@ variable "aws_secret_key" {
   type        = string
   sensitive   = true
 }
+
+variable "github_action_user_name" {
+    description = "GitHub action user name"
+    type        = string
+}

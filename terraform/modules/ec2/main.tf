@@ -19,6 +19,73 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
+resource "aws_ssm_document" "deploy_backend_command" {
+  name          = "DeployBackend"
+  document_type = "Command"
+
+  content = jsonencode({
+    schemaVersion = "2.2",
+    description   = "Deploy backend",
+    parameters = {
+      ImageTag = {
+        type = "String"
+        description = "The Docker image tag"
+      }
+    },
+    mainSteps = [{
+      action = "aws:runShellScript",
+      name   = "deployBackend",
+      inputs = {
+        runCommand = [
+          "docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}",
+          "docker run -d --network my_network --name green_${var.backend_container_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}"
+        ]
+      }
+    }]
+  })
+}
+
+resource "aws_ssm_association" "deploy_backend_association" {
+  name       = aws_ssm_document.deploy_backend_command.name
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.server.id]
+  }
+  parameters = {
+    ImageTag = "latest"  # Replace "latest" with the actual tag you want to use
+  }
+}
+
+resource "aws_iam_policy" "ecr_role_policy" {
+  name        = "ECRBasicOperationsRolePolicy"
+  description = "Policy to allow assuming the ECR role"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:GetAuthorizationToken"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_role_policy_attachment" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.ecr_role_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_policy_attachment" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+
 resource "aws_iam_instance_profile" "ec2_instance_profile" {
   name = "ec2_instance_profile"
   role = aws_iam_role.ec2_role.name
@@ -73,15 +140,41 @@ resource "aws_key_pair" "ssh_key" {
   public_key = tls_private_key.tls.public_key_openssh
 }
 
-
+data "aws_caller_identity" "current" {}
 
 resource "aws_instance" "server" {
   ami			          = "ami-02db68a01488594c5"
-  instance_type           = "t3.micro"
-  key_name                = aws_key_pair.ssh_key.key_name
-  iam_instance_profile    = aws_iam_instance_profile.ec2_instance_profile.name
+  instance_type        = "t3.micro"
+  key_name             = aws_key_pair.ssh_key.key_name
+  iam_instance_profile = aws_iam_instance_profile.ec2_instance_profile.name
 
-  vpc_security_group_ids  = ["${aws_security_group.ec2_security_group.id}", "${aws_security_group.allow_ssh.id}"]
+  vpc_security_group_ids  = [aws_security_group.ec2_security_group.id, aws_security_group.allow_ssh.id]
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo mkdir -p /home/ec2-user/nginx",
+      "sudo chown ec2-user:ec2-user /home/ec2-user/nginx"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file(local_file.private_key.filename)
+      host        = self.public_ip
+    }
+  }
+
+  provisioner "file" {
+    source      = "./modules/ec2/files/nginx.conf"
+    destination = "/home/ec2-user/nginx/nginx.conf"
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file(local_file.private_key.filename)
+      host        = self.public_ip
+    }
+  }
 
   user_data = <<-EOF
               #!/bin/bash
@@ -90,6 +183,9 @@ resource "aws_instance" "server" {
               sudo yum install -y docker
               sudo service docker start
               sudo usermod -a -G docker ec2-user
+              aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com
+              sudo docker network create my_network
+              sudo docker run -p 80:80 -d --network my_network -v ./nginx/nginx.conf:/etc/nginx/nginx.conf nginx:latest
               EOF
 
   tags = {
