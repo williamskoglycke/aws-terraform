@@ -20,7 +20,7 @@ module "s3" {
   region         = var.region
   aws_access_key = module.iam.terraform_access_key_id
   aws_secret_key = module.iam.terraform_secret_access_key
-  bucket_name    = "williamskoglyckebucket"
+  bucket_name    = var.bucket_name
   role_names = [module.ec2.ec2_role_name]
 }
 

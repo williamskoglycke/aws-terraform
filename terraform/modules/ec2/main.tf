@@ -38,7 +38,8 @@ resource "aws_ssm_document" "deploy_backend_command" {
       inputs = {
         runCommand = [
           "docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}",
-          "docker run -d --network my_network --name green_${var.backend_container_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}"
+          "docker rm $(docker stop $(docker ps -a -q --filter=\"name=${var.backend_container_name}\"))",
+          "docker run -d --network my_network --name ${var.backend_container_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}"
         ]
       }
     }]
@@ -150,6 +151,17 @@ resource "aws_instance" "server" {
 
   vpc_security_group_ids  = [aws_security_group.ec2_security_group.id, aws_security_group.allow_ssh.id]
 
+  user_data = <<-EOF
+              #!/bin/bash
+              # Install Docker
+              sudo yum update -y
+              sudo yum install -y docker
+              sudo service docker start
+              sudo usermod -a -G docker ec2-user
+              aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com
+              sudo docker network create my_network
+              EOF
+
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p /home/ec2-user/nginx",
@@ -176,17 +188,18 @@ resource "aws_instance" "server" {
     }
   }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              # Install Docker
-              sudo yum update -y
-              sudo yum install -y docker
-              sudo service docker start
-              sudo usermod -a -G docker ec2-user
-              aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com
-              sudo docker network create my_network
-              sudo docker run -p 80:80 -d --network my_network -v ./nginx/nginx.conf:/etc/nginx/nginx.conf nginx:latest
-              EOF
+  provisioner "remote-exec" {
+    inline = [
+      "sudo docker run -p 80:80 -d --network my_network -v ./nginx/nginx.conf:/etc/nginx/nginx.conf nginx:latest"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"
+      private_key = file(local_file.private_key.filename)
+      host        = self.public_ip
+    }
+  }
 
   tags = {
     Name = "DockerInstance"
