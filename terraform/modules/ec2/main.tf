@@ -57,6 +57,44 @@ resource "aws_ssm_association" "deploy_backend_association" {
   }
 }
 
+resource "aws_ssm_document" "deploy_frontend_command" {
+  name          = "DeployFrontend"
+  document_type = "Command"
+
+  content = jsonencode({
+    schemaVersion = "2.2",
+    description   = "Deploy frontend",
+    parameters = {
+      ImageTag = {
+        type = "String"
+        description = "The Docker image tag"
+      }
+    },
+    mainSteps = [{
+      action = "aws:runShellScript",
+      name   = "deployFrontend",
+      inputs = {
+        runCommand = [
+          "docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.frontend_container_name}:{{ ImageTag }}",
+          "docker rm $(docker stop $(docker ps -a -q --filter=\"name=${var.backend_container_name}\"))",
+          "docker run -d --network my_network --name ${var.frontend_container_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.frontend_container_name}:{{ ImageTag }}"
+        ]
+      }
+    }]
+  })
+}
+
+resource "aws_ssm_association" "deploy_frontend_association" {
+  name       = aws_ssm_document.deploy_frontend_command.name
+  targets {
+    key    = "InstanceIds"
+    values = [aws_instance.server.id]
+  }
+  parameters = {
+    ImageTag = "latest"  # Replace "latest" with the actual tag you want to use
+  }
+}
+
 resource "aws_iam_policy" "ecr_role_policy" {
   name        = "ECRBasicOperationsRolePolicy"
   description = "Policy to allow assuming the ECR role"
