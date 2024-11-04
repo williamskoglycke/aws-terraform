@@ -12,7 +12,7 @@ export default async function Home() {
                     Skoglycke Consulting AB is a consulting company that specializes in
                     software development and cloud computing.
                 </p>
-                <p className="text-lg text-center sm:text-left">Hello {helloResponse}</p>
+                <p className="text-lg text-center sm:text-left">Server response: Hello {helloResponse}</p>
             </main>
         </div>
     );

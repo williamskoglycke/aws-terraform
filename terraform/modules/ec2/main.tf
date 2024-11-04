@@ -37,6 +37,7 @@ resource "aws_ssm_document" "deploy_backend_command" {
       name   = "deployBackend",
       inputs = {
         runCommand = [
+          "aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com",
           "docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}",
           "docker rm $(docker stop $(docker ps -a -q --filter=\"name=${var.backend_container_name}\"))",
           "docker run -d --network my_network --name ${var.backend_container_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.backend_container_name}:{{ ImageTag }}"
@@ -75,6 +76,7 @@ resource "aws_ssm_document" "deploy_frontend_command" {
       name   = "deployFrontend",
       inputs = {
         runCommand = [
+          "aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com",
           "docker pull ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.frontend_container_name}:{{ ImageTag }}",
           "docker rm $(docker stop $(docker ps -a -q --filter=\"name=${var.backend_container_name}\"))",
           "docker run -d --network my_network --name ${var.frontend_container_name} ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com/${var.frontend_container_name}:{{ ImageTag }}"
