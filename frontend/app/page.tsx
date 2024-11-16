@@ -10,7 +10,7 @@ export default async function Home() {
                 <h1 className="text-4xl font-bold text-center sm:text-left">Welcome to Skoglycke Consulting AB</h1>
                 <p className="text-lg text-center sm:text-left">
                     Skoglycke Consulting AB is a consulting company that specializes in
-                    software development and cloud computing.
+                    software development.
                 </p>
                 <p className="text-lg text-center sm:text-left">Server response: Hello {helloResponse}</p>
             </main>
