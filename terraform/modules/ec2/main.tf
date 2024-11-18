@@ -136,8 +136,15 @@ resource "aws_security_group" "ec2_security_group" {
   name = "server"
 
   ingress {
-    from_port	  = var.server_port
-    to_port	      = var.server_port
+    from_port	  = 80
+    to_port	      = 80
+    protocol	  = "tcp"
+    cidr_blocks	  = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port	  = 443
+    to_port	      = 443
     protocol	  = "tcp"
     cidr_blocks	  = ["0.0.0.0/0"]
   }
@@ -181,6 +188,11 @@ resource "aws_key_pair" "ssh_key" {
   public_key = tls_private_key.tls.public_key_openssh
 }
 
+resource "local_file" "nginx_conf" {
+  content = templatefile("${path.module}/files/nginx.conf.tpl", { domain_name = var.domain_name } )
+  filename = "${path.module}/files/nginx.conf"
+}
+
 data "aws_caller_identity" "current" {}
 
 resource "aws_instance" "server" {
@@ -205,7 +217,9 @@ resource "aws_instance" "server" {
   provisioner "remote-exec" {
     inline = [
       "sudo mkdir -p /home/ec2-user/nginx",
-      "sudo chown ec2-user:ec2-user /home/ec2-user/nginx"
+      "sudo chown ec2-user:ec2-user /home/ec2-user/nginx",
+      "sudo mkdir -p /home/ec2-user/certbot/{www,conf}",
+      "sudo chown ec2-user:ec2-user /home/ec2-user/certbot",
     ]
 
     connection {
@@ -230,7 +244,8 @@ resource "aws_instance" "server" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo docker run -p 80:80 -d --network my_network -v ./nginx/nginx.conf:/etc/nginx/nginx.conf nginx:latest"
+      "sudo docker run -p 80:80 -p 443:443 -d --network my_network -v ./nginx/nginx.conf:/etc/nginx/nginx.conf -v /home/ec2-user/certbot/conf:/etc/letsencrypt -v /home/ec2-user/certbot/www:/var/www/certbot nginx:latest",
+      "sudo docker run -d --network my_network -v /home/ec2-user/certbot/conf:/etc/letsencrypt -v /home/ec2-user/certbot/www:/var/www/certbot certbot/certbot certonly --webroot --webroot-path /var/www/certbot --email admin@${var.domain_name} --agree-tos --no-eff-email -d ${var.domain_name}"
     ]
 
     connection {

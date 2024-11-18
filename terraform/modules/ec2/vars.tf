@@ -15,11 +15,6 @@ variable "aws_secret_key" {
   sensitive   = true
 }
 
-variable "server_port" {
-  description = "The port the server will use for HTTP requests"
-  default = "80"
-}
-
 variable "backend_container_name" {
   description = "The backend container name."
   default = "backend"
@@ -28,4 +23,8 @@ variable "backend_container_name" {
 variable "frontend_container_name" {
   description = "The frontend container name."
   default = "frontend"
+}
+
+variable "domain_name" {
+  description = "The domain name for the application."
 }

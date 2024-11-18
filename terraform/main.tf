@@ -13,6 +13,7 @@ module "ec2" {
   aws_secret_key          = module.iam.terraform_secret_access_key
   backend_container_name  = var.backend_container_name
   frontend_container_name = var.frontend_container_name
+  domain_name             = var.domain_name
 }
 
 module "s3" {
